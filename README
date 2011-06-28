@@ -4,6 +4,7 @@ This git helper command is a Gentoo-specific /etc management tool. It attempts t
 in keeping a neat log of all configuration changes in a git repository.
 
 Install:
+	emerge portage-utils 
 	clone repo somewhere, symlink to /usr/local/bin or whatever else is in your PATH.
 
 Use:
