@@ -1,21 +1,5 @@
 #!/bin/bash
-
-# git-etc-commit 0.2, Leho Kraav <leho@kraav.com> https://github.com/lkraav/git-etc-commit
-# This git helper command is a Gentoo-specific /etc management tool. It attempts to aid system administrator
-# in keeping a neat log of all configuration changes in a git repository.
-#
-# Install by cloning repo somewhere and symlinking to /usr/local/bin or whatever else is in your PATH.
-#
-# Features include:
-#  * being very careful and always asking before committing any changes to filesystem
-#  * killable at any time without leaving repository in inconsistent state
-#  * automatic discovery of new files in working directory, what package they belong to
-#    and finding their in-package companions
-#  * can detect package upgrades (new files for packages with already existing files in git history)
-
-# Hint: for rebasing live /etc, use git new-workdir to create a new shared history clone 
-# somewhere else. If you try editing early commits directly in live /etc with git rebase -i,
-# you will have lots of unwanted fun, I promise.
+# git-etc-commit 0.3, Leho Kraav <leho@kraav.com> https://github.com/lkraav/git-etc-commit
 
 DIR="/etc"
 IGNORE="$DIR/.gitignore"
