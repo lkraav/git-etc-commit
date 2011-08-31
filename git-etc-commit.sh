@@ -36,9 +36,13 @@ while true; do
     echo -n -e "Processing \033[1;34m${FILE}\033[0m"
 
     PKG=$(qfile -qvC "$DIR/$FILE")
+
     if [ $? = 0 ]; then
-        echo -e ", belongs to \033[1;34m${PKG}\033[0m"
-        QLIST=$(qlist $PKG | grep ^$DIR)
+        read CATEGORY PN PV PR <<< $(qatom $PKG)
+        P="$CATEGORY/$PN-$PV${PR:+-$PR}"
+
+        echo -e ", belongs to \033[1;34m${P}\033[0m"
+        QLIST=$(qlist $P | grep ^$DIR)
 
         EXISTS=""
         HAS_EXISTING=""
@@ -66,10 +70,10 @@ while true; do
 
         if [ -n "$HAS_EXISTING" ]; then
             echo -e "- \033[1;31mWARNING\033[0m: existing files found in tree, this might be an upgrade"
-            qlop -l $PKG
+            qlop -l "$CATEGORY/$PN"
         fi
 
-        COMMIT="git commit -m \"emerge $(qlist -IUCv $PKG)\" -uno -q"
+        COMMIT="git commit -m \"emerge $(qlist -IUCv $P)\" -uno -q"
         echo "  $ $COMMIT"
         pause "commit"
         
