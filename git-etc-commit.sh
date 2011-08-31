@@ -53,7 +53,7 @@ while true; do
         echo "  Package contents (grep $DIR):"
         for p in $QLIST; do
             # For each file we have to determine, whether this package
-            # already has files in the tree. In this case this might
+            # already has files in the tree. In case this might
             # be an upgrade, commit message should reflect that.
             # In case package has files in modified state, it can be:
             #  - uncommited configuration changes
