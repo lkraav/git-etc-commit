@@ -90,9 +90,7 @@ while true; do
         # TODO: what about custom injected configuration files? They
         # should not be ignored.
         echo " - no owner found"
-        read -p "  Action? (A)mend,(C)ommit,(E)dit,(I)gnore,(Q)uit: " OACTION   
-        case "$OACTION" in
-            A)
+        read -p "  Action? (A)mend,(C)ommit,(D)el,(E)dit,(I)gnore,(T)ig,(Q)uit: " OACTION
         case "${OACTION,,}" in
             a)
                 git add "$FILE"
@@ -102,6 +100,9 @@ while true; do
                 git add "$FILE"
                 git commit
                 ;;
+            d)
+                rm -i "$FILE"
+                ;;
             e)
                 eval $EDITOR "$FILE"
                 ;;
@@ -110,6 +111,9 @@ while true; do
                 echo "  ...orphan, ignoring"
                 echo "  $ $IGNOREFILE"
                 eval "$IGNOREFILE"
+                ;;
+            t)
+                tig
                 ;;
             *)
                 die "No action, exiting" ;;
