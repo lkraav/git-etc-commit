@@ -25,23 +25,23 @@ pause() {
 echo "Starting processing"
 
 while true; do
-	# STATUS=`git status -uno -s`
-	# [ -n "${STATUS}" ] && die "Error: working directory not clean, cannot continue"
+	# STATUS=$(git status -uno -s)
+	# [ -n "$STATUS" ] && die "Error: working directory not clean, cannot continue"
 
 	echo
 	echo "Last commit was:"
 	eval "$GITLOG -1"
 	echo -e "\n"
 
-	FILE=`git ls-files -o -X $IGNORE | head -n 1`
-	[ -n "${FILE}" ] || break
+	FILE=$(git ls-files -o -X $IGNORE | head -n 1)
+	[ -n "$FILE" ] || break
 
 	echo -n -e "Processing \033[1;34m${FILE}\033[0m"
 
-	PKG=`qfile -qvC "$DIR/${FILE}"`
+	PKG=$(qfile -qvC "$DIR/$FILE")
 	if [ $? = 0 ]; then
 		echo -e ", belongs to \033[1;34m${PKG}\033[0m"
-		QLIST=`qlist ${PKG} | grep ^${DIR}`
+		QLIST=$(qlist $PKG | grep ^$DIR)
 
 		EXISTS=""
 		HAS_EXISTING=""
@@ -49,8 +49,8 @@ while true; do
 		OLDIFS=$IFS
 		IFS=$'\n'
 
-		echo "  Package contents (grep ${DIR}):"
-		for p in ${QLIST}; do
+		echo "  Package contents (grep $DIR):"
+		for p in $QLIST; do
 			# For each file we have to determine, whether this package
 			# already has files in the tree. In this case this might
 			# be an upgrade, commit message should reflect that.
@@ -62,20 +62,23 @@ while true; do
 			
 			if [ -n "$EXISTS" ]; then
 				HAS_EXISTING="yes"
-				echo -n " M `eval $GITLOG -1 $p`" 
+				echo -n " M $(eval $GITLOG -1 $p)"
 			fi
 			echo
 		done
 
-		[ -n "$HAS_EXISTING" ] && echo -e "- \033[1;31mWARNING\033[0m: existing files found in tree, this might be an upgrade"
+		if [ -n "$HAS_EXISTING" ]; then
+            echo -e "- \033[1;31mWARNING\033[0m: existing files found in tree, this might be an upgrade"
+            qlop -l $PKG
+        fi
 
-		COMMIT="git commit -m \"emerge `qlist -IUCv $PKG`\" -uno -q"
-		echo "  $ ${COMMIT}"
+		COMMIT="git commit -m \"emerge $(qlist -IUCv $PKG)\" -uno -q"
+		echo "  $ $COMMIT"
 		pause "commit"
 		
 		# -f is needed to add files that are possibly in .gitignored, such as gconf/*
 		echo "  Committing..."
-		git add -f ${QLIST}
+		git add -f $QLIST
 		eval $COMMIT 2> /dev/null
 
 		IFS=$OLDIFS
