@@ -93,17 +93,19 @@ while true; do
         read -p "  Action? (A)mend,(C)ommit,(E)dit,(I)gnore,(Q)uit: " OACTION   
         case "$OACTION" in
             A)
+        case "${OACTION,,}" in
+            a)
                 git add "$FILE"
                 git commit --amend
                 ;;
-            C)
+            c)
                 git add "$FILE"
                 git commit
                 ;;
-            E)
+            e)
                 eval $EDITOR "$FILE"
                 ;;
-            I)
+            i)
                 IGNOREFILE="echo \"$FILE\" >> \"$IGNORE\""
                 echo "  ...orphan, ignoring"
                 echo "  $ $IGNOREFILE"
