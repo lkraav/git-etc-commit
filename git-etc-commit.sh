@@ -28,9 +28,7 @@ while true; do
     # STATUS=$(git status -uno -s)
     # [ -n "$STATUS" ] && die "Error: working directory not clean, cannot continue"
 
-    echo
-    echo "Last commit was:"
-    eval "$GITLOG -1"
+    echo -e "\nLast commit was:\n$(eval "$GITLOG -1")\n"
 
     FILE=$(git ls-files -o -X $IGNORE | head -n 1)
     [ -n "$FILE" ] || break
