@@ -58,6 +58,9 @@ while true; do
             # In case package has files in modified state, it can be:
             #  - uncommited configuration changes
             #  - version upgrades
+
+            # git ls-files can throw errors here if $p is symlink pointing to
+            # outside the repository
             EXISTS=$(git ls-files $p)
             echo -n "   $p"
             
