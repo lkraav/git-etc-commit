@@ -1,5 +1,5 @@
 #!/bin/bash
-# git-etc-commit 0.3, Leho Kraav <leho@kraav.com> https://github.com/lkraav/git-etc-commit
+# git-etc-commit 0.4, Leho Kraav <leho@kraav.com> https://github.com/lkraav/git-etc-commit
 
 DIR="/etc"
 IGNORE="$DIR/.gitignore"
