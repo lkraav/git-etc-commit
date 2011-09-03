@@ -3,8 +3,7 @@
 
 DIR="/etc"
 IGNORE="$DIR/.gitignore"
-# GITLOG source: https://twitter.com/#!/lkraav/status/72605873616322560
-GITLOG="git --no-pager log --graph --pretty=tformat:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset' --abbrev-commit --date=relative -1"
+MULTIEDITOR="$EDITOR -p"
 PAGER=""
 SEP="-"
 SEPARATOR=""
@@ -15,8 +14,95 @@ die() {
 }
 
 pause() {
-    [ -n "$@" ] && echo -n -e "- Press ENTER to \033[1;31m$1\033[0m, "
+    [ -n "$@" ] && echo -n -e "- Press ENTER to $(color red)$1$(color off), "
     read -p "CTRL-C to quit"
+}
+
+gitlog() {
+    # log format source: https://twitter.com/#!/lkraav/status/72605873616322560
+    git --no-pager log --pretty=tformat:'%Cred%h%Creset|%C(yellow)%d%Creset%s|%Cgreen(%cr)|%C(bold blue)<%an>%Creset' \
+        --abbrev-commit --date=relative "$@" |
+        while IFS="|" read hash message time author; do
+            printf '%s %s %s %s\n' "$hash" "$message" "$time" "$author"
+        done
+}
+
+getaction() {
+    # Actions can be modified, markers used are same as git ls-files parameters
+    # m modified, o other (i.e. untracked)
+    local STATUS="$1"; shift
+    local FILE="$@"
+
+    while true; do
+    read -p "  $(color blue)$FILE$(color off) $(color red)Action?$(color off) (A)mend,(C)ommit,(D)el,(E)dit,Di(F)f,(I)gnore,(L)og,(P)atch,(R)efresh,(T)ig,(U)pgrade,(Q)uit: " OACTION
+    OACTION="$STATUS$OACTION"
+    case "${OACTION,,}" in
+        [mo]a)
+            git add "$FILE"
+            git commit --amend
+            ;;
+        [mo]c)
+            git commit "$FILE"
+            ;;
+        [mo]d)
+            rm -i "$FILE"
+            ;;
+        [mo]e)
+            eval $EDITOR "$FILE"
+            continue
+            ;;
+        [mo]ee)
+            $MULTIEDITOR $QLIST
+            continue
+            ;;
+        [mo]f)
+            git diff --no-color "$FILE"
+            continue
+            ;;
+        [mo]ff)
+            git diff --no-color -- $(echo "$MLIST")
+            continue
+            ;;
+        oi)
+            IGNOREFILE="echo \"$FILE\" >> \"$IGNORE\""
+            echo "  ...orphan, ignoring"
+            echo "  $ $IGNOREFILE"
+            eval "$IGNOREFILE"
+            ;;
+        [mo]l)
+            gitlog "$FILE"
+            continue
+            ;;
+        [mo]ll)
+            gitlog -p "$FILE"
+            continue
+            ;;
+        [mo]p)
+            git add -p "$FILE"
+            git commit
+            ;;
+        [mo]r)
+            break
+            ;;
+        [mo]t)
+            tig status
+            continue
+            ;;
+        mu)
+            # -f is needed to add files that are possibly in .gitignored, such as gconf/*
+            echo "  Committing..."
+            for f in $MLIST; do git add -f "$f"; done
+            eval $COMMIT 2> /dev/null
+            ;;
+        *)
+            die "Empty or unrecognized action, exiting" ;;
+    esac
+    break
+    done
+}
+
+halfcols() {
+    printf "%d" $(bc <<< "($(tput cols) - 10 + $1) / 2")
 }
 
 [ $PWD != $DIR ] && die "Error: working directory is not $DIR, cannot continue"
@@ -25,15 +111,12 @@ pause() {
 echo "Starting processing"
 
 while true; do
-    # STATUS=$(git status -uno -s)
-    # [ -n "$STATUS" ] && die "Error: working directory not clean, cannot continue"
+    echo "Last 5 commits:"; gitlog -5 --reverse; echo
 
-    echo -e "\nLast commit was:\n$(eval "$GITLOG -1")\n"
-
-    FILE=$(git ls-files -o -X $IGNORE | head -n 1)
+    FILE=$(git ls-files -m -X $IGNORE | head -n 1)
     [ -n "$FILE" ] || break
 
-    echo -n -e "Processing \033[1;34m${FILE}\033[0m"
+    printf "Processing $(color blue)${FILE}$(color off)"
 
     PKG=$(qfile -qvC "$DIR/$FILE")
 
@@ -41,8 +124,9 @@ while true; do
         read CATEGORY PN PV PR <<< $(qatom $PKG)
         P="$CATEGORY/$PN-$PV${PR:+-$PR}"
 
-        echo -e ", belongs to \033[1;34m${P}\033[0m"
+        echo -e ", belongs to $(color blue)$P$(color off)"
         QLIST=$(qlist $P | grep ^$DIR)
+        MLIST=""
 
         EXISTS=""
         HAS_EXISTING=""
@@ -61,63 +145,36 @@ while true; do
 
             # git ls-files can throw errors here if $p is symlink pointing to
             # outside the repository
-            EXISTS=$(git ls-files $p)
-            echo -n "   $p"
+            EXISTS=$(git ls-files "$p")
+            LOG=""
+            STATUS=""
             
             if [ -n "$EXISTS" ]; then
+                # We need this variable in case last file checked is not in the tree
                 HAS_EXISTING="yes"
-                echo -n " M $(eval $GITLOG -1 $p)"
+                IFS=" " read STATUS TMP <<< $(git status -s "$p")
+                [ "$STATUS" = "M" ] && MLIST+="$p"$'\n'
+                LOG=$(gitlog -1 "$p")
             fi
-            echo
+            printf "  $(color ltred)%s$(color off) %-$(halfcols -3)s%$(halfcols -1)s\n" ${STATUS:-' '} "$p" "$LOG"
         done
 
         if [ -n "$HAS_EXISTING" ]; then
-            echo -e "- \033[1;31mWARNING\033[0m: existing files found in tree, this might be an upgrade"
-            qlop -l "$CATEGORY/$PN"
+            echo -e "- $(color red)WARNING$(color off): existing files found in tree, this might be an upgrade"
+            echo -e "  Merge history:"
+            qlop -l "$CATEGORY/$PN" | while read line; do echo "   $line"; done
         fi
 
-        COMMIT="git commit -m \"emerge $(qlist -IUCv $P)\" -uno -q"
+        COMMIT="git commit -m \"upgrade -> $(qlist -IUCv $P)\" -uno -q"
         echo "  $ $COMMIT"
-        pause "commit"
-        
-        # -f is needed to add files that are possibly in .gitignored, such as gconf/*
-        echo "  Committing..."
-        git add -f $QLIST
-        eval $COMMIT 2> /dev/null
+        COMMIT="$COMMIT" QLIST="$QLIST" MLIST="$MLIST" getaction m "$FILE"
 
         IFS=$OLDIFS
     else
         # TODO: what about custom injected configuration files? They
         # should not be ignored.
         echo " - no owner found"
-        read -p "  Action? (A)mend,(C)ommit,(D)el,(E)dit,(I)gnore,(T)ig,(Q)uit: " OACTION
-        case "${OACTION,,}" in
-            a)
-                git add "$FILE"
-                git commit --amend
-                ;;
-            c)
-                git add "$FILE"
-                git commit
-                ;;
-            d)
-                rm -i "$FILE"
-                ;;
-            e)
-                eval $EDITOR "$FILE"
-                ;;
-            i)
-                IGNOREFILE="echo \"$FILE\" >> \"$IGNORE\""
-                echo "  ...orphan, ignoring"
-                echo "  $ $IGNOREFILE"
-                eval "$IGNOREFILE"
-                ;;
-            t)
-                tig
-                ;;
-            *)
-                die "No action, exiting" ;;
-        esac
+        getaction o "$FILE"
         pause "keep working"
     fi
 done
