@@ -29,13 +29,25 @@ gitlog() {
         --abbrev-commit --date=relative "$@" |
         while IFS="|" read hash message time author; do
             # shell printf apparently doesn't truncate fields, we need to double with bash
-            printf "  $(color red)%${WH}s$(color off) %-${WM}s $(color green)%${WT}s$(color off) $(color blue)%-${WA}s$(color off)\n" "${hash:0:$WH}" "${message:0:$WM}" "${time:0:$WT}" "${author:0:$WA}"
+            printf "  \-$(color red)%${WH}s$(color off) %-${WM}s $(color green)%${WT}s$(color off) $(color blue)%-${WA}s$(color off)\n" "${hash:0:$WH}" "${message:0:$WM}" "${time:0:$WT}" "${author:0:$WA}"
         done
 }
 
 fieldwidth() {
     printf -v FLOAT "%s" "$(bc <<< "$COLUMNS * $1")"
     echo ${FLOAT/\.*}
+}
+
+getstatus() {
+    # git-status doesn't like absolute paths, make sure you give it relatives
+    IFS=" " read STATUS TMP <<< $(git status -s "$1")
+    echo $STATUS
+}
+
+printlog() {
+    local FILE="$1"; shift
+
+    printf "%s $(color ltred)%s$(color off) %s\n" "$(gitlog $@ -- $FILE)"
 }
 
 [ $PWD != $DIR ] && die "Error: working directory is not $DIR, cannot continue"
@@ -45,80 +57,96 @@ fieldwidth() {
 for FILETYPE in others modified; do
     echo "Starting processing $FILETYPE..."
 
-    for FILE in $(git ls-files --$FILETYPE -X $IGNORE); do
+    # Should have a (x/X) counter here
+    # Counting can be difficult when we actually make changes to the list inside loop
+    LSFILES=$(git ls-files --$FILETYPE -X $IGNORE)
+    COUNT=$(echo "$LSFILES" | wc -l)
+    C=0
+    for FILE in $LSFILES; do
+        [ -n "$FILE" ] || break
+        let C++
+
+        STATUS=$(getstatus "$FILE")
+        if [ -z "$STATUS" ]; then
+            echo -e "$(color ltblue)$FILE$(color off) has no change status, it was probably already processsed. Skipping..."
+            continue
+        fi
+
         echo -e "\nLast 5 commits:"; gitlog -5 --reverse; echo
 
-        [ -n "$FILE" ] || break
+        printf "($C/$COUNT) Processing $(color ltred)${STATUS:+$STATUS }$(color off)$(color ltblue)$FILE$(color off)"
 
-        printf "Processing $(color blue)$FILE$(color off)"
+        MLIST="" # package-owned files with modifications
+        P=$(qfile -qvC "$DIR/$FILE" | head -n 1)
 
-        PKG=$(qfile -qvC "$DIR/$FILE")
-
-        if [ $? = 0 ]; then
-            read CATEGORY PN PV PR <<< $(qatom $PKG)
+        if [ -n "$P" ]; then
+            IFS=" " read CATEGORY PN PV PR <<< $(qatom "$P")
             P="$CATEGORY/$PN-$PV${PR:+-$PR}"
 
-            echo -e ", belongs to $(color blue)$P$(color off)"
-            QLIST=$(qlist $P | grep ^$DIR) # list of all files owned by package in /etc
-            MLIST=""                       # ...only package files with modifications
+            echo -e ", belongs to $(color blue)$P$(color off)\n"
+            QLIST=$(qlist $P | grep ^$DIR) # all package-owned files in /etc
 
             EXISTS=""
             HAS_EXISTING="" # need this in case last file checked is not in the tree
+            OPTYPE="emerge"
 
             OLDIFS=$IFS
             IFS=$'\n'
 
-            echo "  Package contents (grep $DIR):"
-            for p in $QLIST; do
+            echo "Package contents (grep $DIR) and their status:"
+            for PFILE in $QLIST; do
                 # For each file we have to determine, whether this package
-                # already has files in the tree. In case this might
-                # be an upgrade, commit message should reflect that.
+                #  already has files in the tree. In case this might
+                #  be an upgrade, commit message should reflect that.
                 # In case package has files in modified state, it can be:
                 #  - uncommited configuration changes
                 #  - version upgrades
-
                 # git ls-files can throw errors here if $p is symlink pointing to
-                # outside the repository
-                EXISTS=$(git ls-files "$p")
-                LOG=""
+                #  outside the repository
+                # git ls-files also returns target of symlink, not symlink
+                PFILE=${PFILE#$DIR/}
                 STATUS=""
+                EXISTS=$(git ls-files "$PFILE")
                 
                 if [ -n "$EXISTS" ]; then
                     HAS_EXISTING="yes"
-                    IFS=" " read STATUS TMP <<< $(git status -s "$p")
-                    [ "$STATUS" = "M" ] && MLIST+="$p"$'\n'
-                    LOG=$(gitlog -1 "$p")
+                    STATUS=$(getstatus "$PFILE")
+                    [ "$STATUS" = "M" ] && MLIST+="$PFILE"$'\n'
                 fi
-                printf "  $(color ltred)%s$(color off) %s %s\n" ${STATUS:-' '} "$p" "$LOG"
+                printf "$(color red)${STATUS:- }$(color off) ${PFILE#$DIR/}\n$(printlog "$PFILE" -1)\n"
             done
 
             if [ -n "$HAS_EXISTING" ]; then
-                echo -e "- $(color red)WARNING$(color off): existing files found in tree, \
-                    this might be an upgrade"
-                echo -e "  Merge history:"
-                qlop -l "$CATEGORY/$PN" | while read line; do echo "   $line"; done
+                echo -e "\n$(color red)WARNING$(color off): existing files found in tree, this might be an upgrade\n"
+                echo -e "Merge history:"
+                qlop -l "$CATEGORY/$PN-" | while read line; do echo "$line"; done
+                echo
             fi
 
-            OPTYPE="emerge"
             [ "$FILETYPE" = "modified" ] && OPTYPE="upgrade ->"
             COMMIT="git commit -m \"$OPTYPE $(qlist -IUCv $P)\" -uno -q"
-            echo "  $ $COMMIT"
-            # Actions can be modified, markers used are same as git ls-files parameters
-            # m modified, o other (i.e. untracked)
+            echo "$ $COMMIT"
         else
-            echo " - no owner found"
+            printf " - no owner found\n"
+            printlog "$FILE" -1
         fi
 
         while true; do
-        echo "  $(color blue)$FILE$(color off) $(color red)Action?$(color off)"
-            read -p "  (A)mend,(C)ommit,(D)el,(E)dit,Di(F)f,(I)gnore,(L)og,(P)atch,(S)kip,(T)ig,(U)pgrade,(Q)uit: " OACTION
+            read -p "(A)mend,(C)ommit,(D)el,(E)dit,Di(F)f,(I)gnore,(L)og,(P)atch,(S)kip,(T)ig,(U)pgrade,(Q)uit: " OACTION
             OACTION="${FILETYPE:0:1}$OACTION"
             case "${OACTION,,}" in
                 [mo]a) # (A)mend
                     git add "$FILE"
                     git commit --amend
                     ;;
-                [mo]c) # (C)ommit
+                mc) # (C)ommit
+                    git commit "$FILE"
+                    if [ $? != 0 ]; then
+                        git reset -q HEAD
+                        continue
+                    fi
+                    ;;
+                oc) # (C)ommit
                     git add "$FILE"
                     [ -n "$COMMIT" ] && eval "$COMMIT" "$FILE" || git commit "$FILE"
                     if [ $? != 0 ]; then
@@ -138,7 +166,7 @@ for FILETYPE in others modified; do
                     continue
                     ;;
                 [mo]f) # Di(f)f
-                    git diff --no-color "$FILE"
+                    git diff --no-color -- "$FILE"
                     continue
                     ;;
                 [mo]ff) # Di(ff) multiple
@@ -147,21 +175,21 @@ for FILETYPE in others modified; do
                     ;;
                 oi) # (I)gnore
                     IGNOREFILE="echo \"$FILE\" >> \"$IGNORE\""
-                    echo "  ...orphan, ignoring"
-                    echo "  $ $IGNOREFILE"
+                    echo "...orphan, ignoring"
+                    echo "$ $IGNOREFILE"
                     eval "$IGNOREFILE"
                     ;;
                 [mo]l) # (L)og
-                    gitlog "$FILE"
+                    printf "$(color red)${STATUS:- }$(color off) $FILE\n$(printlog $FILE --follow)\n"
                     continue
                     ;;
-                [mo]ll) # (L)og multiple
-                    gitlog -p "$FILE"
+                [o]ll) # (L)og multiple
+                    printf "$(color red)${STATUS:- }$(color off) $FILE\n$(printlog "$FILE" -p)\n"
                     continue
                     ;;
                 [mo]p) # (P)atch i.e. add interactive
                     git add -p "$FILE"
-                    git commit
+                    continue
                     ;;
                 [mo]q) # (Q)uit
                     die "Exiting by user command"
@@ -174,9 +202,9 @@ for FILETYPE in others modified; do
                     continue
                     ;;
                 mu) # (U)pgrade
-                    echo "  Committing..."
+                    echo -e "Committing...\n"
                     # -f for files possibly in .gitignored, such as gconf/*
-                    for f in $MLIST; do git add -f "$f"; done
+                    for FILE in $MLIST; do git add -f "$FILE"; done
                     eval $COMMIT 2> /dev/null
                     ;;
                 *)
@@ -186,7 +214,8 @@ for FILETYPE in others modified; do
         done
 
         IFS=$OLDIFS
+        unset P CATEGORY PN PV PR
     done
 
-    echo "Finished with $FILETYPE"
+    echo -e "Finished with $FILETYPE\n"
 done
