@@ -1,6 +1,7 @@
 #!/bin/bash
 # git-etc-commit 0.4, Leho Kraav <leho@kraav.com> https://github.com/lkraav/git-etc-commit
 
+COLUMNS=80 # replace with $(tput cols) for variable width
 DIR="/etc"
 IGNORE="$DIR/.gitignore"
 MULTIEDITOR="$EDITOR -p"
@@ -19,19 +20,25 @@ pause() {
 }
 
 gitlog() {
+    local WH=7                 # hash
+    local WM=$(fieldwidth 0.6) # message
+    local WT=$(fieldwidth 0.2) # time
+    local WA=$(fieldwidth 0.1) # author
     # log format source: https://twitter.com/#!/lkraav/status/72605873616322560
-    git --no-pager log --pretty=tformat:'%Cred%h%Creset|%C(yellow)%d%Creset%s|%Cgreen(%cr)|%C(bold blue)<%an>%Creset' \
+    git --no-pager log --pretty=tformat:'%h|%d%s|(%cr)|<%an>' \
         --abbrev-commit --date=relative "$@" |
         while IFS="|" read hash message time author; do
-            printf '%s %s %s %s\n' "$hash" "$message" "$time" "$author"
+            # shell printf apparently doesn't truncate fields, we need to double with bash
+            printf "  $(color red)%${WH}s$(color off) %-${WM}s $(color green)%${WT}s$(color off) $(color blue)%-${WA}s$(color off)\n" "${hash:0:$WH}" "${message:0:$WM}" "${time:0:$WT}" "${author:0:$WA}"
         done
 }
 
 getaction() {
 }
 
-halfcols() {
-    printf "%d" $(bc <<< "($(tput cols) - 10 + $1) / 2")
+fieldwidth() {
+    printf -v FLOAT "%s" "$(bc <<< "$COLUMNS * $1")"
+    echo ${FLOAT/\.*}
 }
 
 [ $PWD != $DIR ] && die "Error: working directory is not $DIR, cannot continue"
@@ -85,7 +92,7 @@ while true; do
                 [ "$STATUS" = "M" ] && MLIST+="$p"$'\n'
                 LOG=$(gitlog -1 "$p")
             fi
-            printf "  $(color ltred)%s$(color off) %-$(halfcols -3)s%$(halfcols -1)s\n" ${STATUS:-' '} "$p" "$LOG"
+            printf "  $(color ltred)%s$(color off) %s %s\n" ${STATUS:-' '} "$p" "$LOG"
         done
 
         if [ -n "$HAS_EXISTING" ]; then
