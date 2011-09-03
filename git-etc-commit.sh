@@ -28,77 +28,6 @@ gitlog() {
 }
 
 getaction() {
-    # Actions can be modified, markers used are same as git ls-files parameters
-    # m modified, o other (i.e. untracked)
-    local STATUS="$1"; shift
-    local FILE="$@"
-
-    while true; do
-    read -p "  $(color blue)$FILE$(color off) $(color red)Action?$(color off) (A)mend,(C)ommit,(D)el,(E)dit,Di(F)f,(I)gnore,(L)og,(P)atch,(R)efresh,(T)ig,(U)pgrade,(Q)uit: " OACTION
-    OACTION="$STATUS$OACTION"
-    case "${OACTION,,}" in
-        [mo]a)
-            git add "$FILE"
-            git commit --amend
-            ;;
-        [mo]c)
-            git commit "$FILE"
-            ;;
-        [mo]d)
-            rm -i "$FILE"
-            ;;
-        [mo]e)
-            eval $EDITOR "$FILE"
-            continue
-            ;;
-        [mo]ee)
-            $MULTIEDITOR $QLIST
-            continue
-            ;;
-        [mo]f)
-            git diff --no-color "$FILE"
-            continue
-            ;;
-        [mo]ff)
-            git diff --no-color -- $(echo "$MLIST")
-            continue
-            ;;
-        oi)
-            IGNOREFILE="echo \"$FILE\" >> \"$IGNORE\""
-            echo "  ...orphan, ignoring"
-            echo "  $ $IGNOREFILE"
-            eval "$IGNOREFILE"
-            ;;
-        [mo]l)
-            gitlog "$FILE"
-            continue
-            ;;
-        [mo]ll)
-            gitlog -p "$FILE"
-            continue
-            ;;
-        [mo]p)
-            git add -p "$FILE"
-            git commit
-            ;;
-        [mo]r)
-            break
-            ;;
-        [mo]t)
-            tig status
-            continue
-            ;;
-        mu)
-            # -f is needed to add files that are possibly in .gitignored, such as gconf/*
-            echo "  Committing..."
-            for f in $MLIST; do git add -f "$f"; done
-            eval $COMMIT 2> /dev/null
-            ;;
-        *)
-            die "Empty or unrecognized action, exiting" ;;
-    esac
-    break
-    done
 }
 
 halfcols() {
@@ -168,6 +97,77 @@ while true; do
         COMMIT="git commit -m \"upgrade -> $(qlist -IUCv $P)\" -uno -q"
         echo "  $ $COMMIT"
         COMMIT="$COMMIT" QLIST="$QLIST" MLIST="$MLIST" getaction m "$FILE"
+        # Actions can be modified, markers used are same as git ls-files parameters
+        # m modified, o other (i.e. untracked)
+        local STATUS="$1"; shift
+        local FILE="$@"
+
+        while true; do
+        read -p "  $(color blue)$FILE$(color off) $(color red)Action?$(color off) (A)mend,(C)ommit,(D)el,(E)dit,Di(F)f,(I)gnore,(L)og,(P)atch,(R)efresh,(T)ig,(U)pgrade,(Q)uit: " OACTION
+        OACTION="$STATUS$OACTION"
+        case "${OACTION,,}" in
+            [mo]a)
+                git add "$FILE"
+                git commit --amend
+                ;;
+            [mo]c)
+                git commit "$FILE"
+                ;;
+            [mo]d)
+                rm -i "$FILE"
+                ;;
+            [mo]e)
+                eval $EDITOR "$FILE"
+                continue
+                ;;
+            [mo]ee)
+                $MULTIEDITOR $QLIST
+                continue
+                ;;
+            [mo]f)
+                git diff --no-color "$FILE"
+                continue
+                ;;
+            [mo]ff)
+                git diff --no-color -- $(echo "$MLIST")
+                continue
+                ;;
+            oi)
+                IGNOREFILE="echo \"$FILE\" >> \"$IGNORE\""
+                echo "  ...orphan, ignoring"
+                echo "  $ $IGNOREFILE"
+                eval "$IGNOREFILE"
+                ;;
+            [mo]l)
+                gitlog "$FILE"
+                continue
+                ;;
+            [mo]ll)
+                gitlog -p "$FILE"
+                continue
+                ;;
+            [mo]p)
+                git add -p "$FILE"
+                git commit
+                ;;
+            [mo]r)
+                break
+                ;;
+            [mo]t)
+                tig status
+                continue
+                ;;
+            mu)
+                # -f is needed to add files that are possibly in .gitignored, such as gconf/*
+                echo "  Committing..."
+                for f in $MLIST; do git add -f "$f"; done
+                eval $COMMIT 2> /dev/null
+                ;;
+            *)
+                die "Empty or unrecognized action, exiting" ;;
+        esac
+        break
+        done
 
         IFS=$OLDIFS
     else
