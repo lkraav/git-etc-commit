@@ -30,7 +30,8 @@ gitlog() {
         --abbrev-commit --date=relative "$@" |
         while IFS="|" read hash message time author; do
             # shell printf apparently doesn't truncate fields, we need to double with bash
-            printf "  \-$(color red)%${WH}s$(color off) %-${WM}s $(color green)%${WT}s$(color off) $(color blue)%-${WA}s$(color off)\n" "${hash:0:$WH}" "${message:0:$WM}" "${time:0:$WT}" "${author:0:$WA}"
+            # extra space after \- so your terminal can copy hashes without ascii
+            printf "  \- $(color red)%${WH}s$(color off) %-${WM}s $(color green)%${WT}s$(color off) $(color blue)%-${WA}s$(color off)\n" "${hash:0:$WH}" "${message:0:$WM}" "${time:0:$WT}" "${author:0:$WA}"
         done
 }
 
