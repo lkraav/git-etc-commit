@@ -4,7 +4,7 @@
 COLUMNS=80 # replace with $(tput cols) for variable width
 DIR="/etc"
 IGNORE="$DIR/.gitignore"
-MULTIEDITOR="$EDITOR -p"
+MULTIEDIT="-p"
 PAGER=""
 SEP="-"
 SEPARATOR=""
@@ -167,7 +167,7 @@ for FILETYPE in others modified; do
                     continue
                     ;;
                 [mo]ee) # (E)dit multiple
-                    $MULTIEDITOR $QLIST
+                    eval $EDITOR $MULTIEDIT $(echo "$QLIST")
                     continue
                     ;;
                 [mo]f) # Di(f)f
