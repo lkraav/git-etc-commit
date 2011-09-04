@@ -89,6 +89,7 @@ for FILETYPE in others modified; do
 
         printf "($C/$COUNT) Processing $(color ltred)${STATUS:+"$STATUS" }$(color off)$(color ltblue)$FILE$(color off)"
 
+        COMMIT=""
         MLIST="" # package-owned files with modifications
         P=$(qfile -qvC "$DIR/$FILE" | head -n 1)
 
