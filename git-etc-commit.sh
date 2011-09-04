@@ -151,7 +151,7 @@ for FILETYPE in others modified; do
         fi
 
         while true; do
-            read -p "(A)mend,(C)ommit,(D)el,(E)dit,Di(F)f,(I)gnore,(L)og,(P)atch,(S)kip,(T)ig,(U)pgrade,(Q)uit: " OACTION
+            read -p "(A)mend,(C)ommit,(D)el,(E)dit,Di(f)f,(I)gnore,(L)og,(P)atch,(R)evert,(S)kip,(T)ig,E(x)ec,(Q)uit: " OACTION
             OACTION="${FILETYPE:0:1}$OACTION"
             case "${OACTION,,}" in
                 [mo]a) # (A)mend
@@ -167,7 +167,7 @@ for FILETYPE in others modified; do
                     ;;
                 oc) # (C)ommit
                     git add "$FILE"
-                    [ -n "$COMMIT" ] && eval "$COMMIT" "$FILE" || git commit "$FILE"
+                    git commit "$FILE"
                     if [ $? != 0 ]; then
                         git reset -q HEAD
                         continue
@@ -192,9 +192,19 @@ for FILETYPE in others modified; do
                     git diff --no-color -- $(echo "$MLIST")
                     continue
                     ;;
+                [mo]fs) # Di(f) stage
+                    git diff --no-color --cached
+                    continue
+                    ;;
                 oi) # (I)gnore
                     IGNOREFILE="echo \"$FILE\" >> \"$IGNORE\""
                     echo "...orphan, ignoring"
+                    echo "$ $IGNOREFILE"
+                    eval "$IGNOREFILE"
+                    ;;
+                [mo]ig) # (I)gnore in git-etc-commit
+                    IGNOREFILE="echo \"$FILE\" >> \"$GECIGNORE\""
+                    echo "...ignoring for future git-etc-commit runs"
                     echo "$ $IGNOREFILE"
                     eval "$IGNOREFILE"
                     ;;
@@ -213,6 +223,10 @@ for FILETYPE in others modified; do
                 [mo]q) # (Q)uit
                     die "Exiting by user command"
                     ;;
+                mr) # (R)evert
+                    git checkout -- "$FILE"
+                    break
+                    ;;
                 [mo]s) # (S)kip
                     break
                     ;;
@@ -220,10 +234,11 @@ for FILETYPE in others modified; do
                     tig status
                     continue
                     ;;
-                mu) # (U)pgrade
+                [mo]x) # E(x)ecute suggestion
                     echo -e "Committing...\n"
                     # -f for files possibly in .gitignored, such as gconf/*
-                    for FILE in $MLIST; do git add -f "$FILE"; done
+                    # for FILE in $MLIST; do git add -f "$FILE"; done
+                    git add -f $(echo "$MLIST")
                     eval $COMMIT 2> /dev/null
                     ;;
                 *)
