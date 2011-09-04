@@ -135,11 +135,12 @@ for FILETYPE in others modified; do
             done
 
             if [ -n "$HAS_EXISTING" ]; then
-                echo -e "\n$(color red)WARNING$(color off): existing files found in tree, this might be an upgrade\n"
-                echo -e "Merge history:"
-                qlop -l "$CATEGORY/$PN-" | while read line; do echo "$line"; done
-                echo
+                echo -e "\n$(color red)WARNING$(color off): existing files found in tree, this might be an upgrade"
             fi
+
+            echo -e "\nMerge history:"
+            qlop -lu "$CATEGORY/$PN-" | while read line; do echo "$line"; done
+            echo
 
             [ "$FILETYPE" = "modified" -o -n "$HAS_EXISTING" ] && OPTYPE="upgrade ->"
             COMMIT="git commit -m \"$OPTYPE $(qlist -IUCv $P)\" -uno -q"
