@@ -4,6 +4,7 @@
 COLUMNS=80 # replace with $(tput cols) for variable width
 DIR="/etc"
 IGNORE="$DIR/.gitignore"
+GECIGNORE="$DIR/.gecignore"
 MULTIEDIT="-p"
 PAGER=""
 SEP="-"
@@ -70,6 +71,17 @@ for FILETYPE in others modified; do
         if [ -z "$STATUS" ]; then
             echo -e "$(color ltblue)$FILE$(color off) has no change status, it was probably already processsed. Skipping..."
             continue
+        fi
+
+        if [ -f "$GECIGNORE" ]; then
+            if [ -r "$GECIGNORE" ]; then
+                if grep -qx "$FILE" "$GECIGNORE"; then
+                    echo -e "Found $(color ltblue)$FILE$(color off) in $GECIGNORE. Skipping..."
+                    continue
+                fi
+            else
+                die "Error: unable to read $GECIGNORE, check file permissions"
+            fi
         fi
 
         echo -e "\nLast 5 commits:"; gitlog -5 --reverse; echo
