@@ -41,7 +41,7 @@ fieldwidth() {
 getstatus() {
     # git-status doesn't like absolute paths, make sure you give it relatives
     IFS=" " read STATUS TMP <<< $(git status -s "$1")
-    echo $STATUS
+    [ -n "$STATUS" ] && echo "${STATUS:0:1}"
 }
 
 printlog() {
@@ -74,7 +74,7 @@ for FILETYPE in others modified; do
 
         echo -e "\nLast 5 commits:"; gitlog -5 --reverse; echo
 
-        printf "($C/$COUNT) Processing $(color ltred)${STATUS:+$STATUS }$(color off)$(color ltblue)$FILE$(color off)"
+        printf "($C/$COUNT) Processing $(color ltred)${STATUS:+"$STATUS" }$(color off)$(color ltblue)$FILE$(color off)"
 
         MLIST="" # package-owned files with modifications
         P=$(qfile -qvC "$DIR/$FILE" | head -n 1)
@@ -93,6 +93,7 @@ for FILETYPE in others modified; do
             OLDIFS=$IFS
             IFS=$'\n'
 
+            # This also needs to respect .gitignore
             echo "Package contents (grep $DIR) and their status:"
             for PFILE in $QLIST; do
                 # For each file we have to determine, whether this package
@@ -105,15 +106,19 @@ for FILETYPE in others modified; do
                 #  outside the repository
                 # git ls-files also returns target of symlink, not symlink
                 PFILE=${PFILE#$DIR/}
-                STATUS=""
+                LOG=""
                 EXISTS=$(git ls-files "$PFILE")
+                STATUS=$(getstatus "$PFILE")
                 
                 if [ -n "$EXISTS" ]; then
                     HAS_EXISTING="yes"
-                    STATUS=$(getstatus "$PFILE")
-                    [ "$STATUS" = "M" ] && MLIST+="$PFILE"$'\n'
+                    LOG="$(printlog "$PFILE" -1)\n"
+                else
+                    # file cannot be ignored
+                    [ "$STATUS" = "?" ] || continue
                 fi
-                printf "$(color red)${STATUS:- }$(color off) ${PFILE#$DIR/}\n$(printlog "$PFILE" -1)\n"
+                MLIST+="$PFILE"$'\n'
+                printf "$(color red)${STATUS:- }$(color off) ${PFILE#$DIR/}\n${LOG:-}"
             done
 
             if [ -n "$HAS_EXISTING" ]; then
@@ -123,7 +128,7 @@ for FILETYPE in others modified; do
                 echo
             fi
 
-            [ "$FILETYPE" = "modified" ] && OPTYPE="upgrade ->"
+            [ "$FILETYPE" = "modified" -o -n "$HAS_EXISTING" ] && OPTYPE="upgrade ->"
             COMMIT="git commit -m \"$OPTYPE $(qlist -IUCv $P)\" -uno -q"
             echo "$ $COMMIT"
         else
