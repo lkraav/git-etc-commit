@@ -64,6 +64,7 @@ for FILETYPE in others modified; do
     LSFILES=$(git ls-files --$FILETYPE -X $IGNORE)
     COUNT=$(echo "$LSFILES" | wc -l)
     C=0
+    IFS=$'\n'
     for FILE in $LSFILES; do
         [ -n "$FILE" ] || break
         let C++
