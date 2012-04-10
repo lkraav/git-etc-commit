@@ -159,6 +159,10 @@ for FILETYPE in others modified; do
                 [mo]a) # (A)mend
                     git add "$FILE"
                     git commit --amend
+                    if [ $? != 0 ]; then
+                        git reset -q HEAD
+                        continue
+                    fi
                     ;;
                 mc) # (C)ommit
                     git commit "$FILE"
