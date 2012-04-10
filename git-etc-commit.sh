@@ -153,7 +153,7 @@ for FILETYPE in others modified; do
         fi
 
         while true; do
-            read -p "(A)mend,(C)ommit,(D)el,(E)dit,Di(f)f,(I)gnore,(L)og,(P)atch,(R)evert,(S)kip,(T)ig,E(x)ec,(Q)uit: " OACTION
+            read -p "(A)mend,(C)ommit,(D)el,(E)dit,Di(f)(f),(I)gnore,(L)og,(P)atch,(R)evert,(S)kip,(T)ig,E(x)ec,(Q)uit: " OACTION
             OACTION="${FILETYPE:0:1}$OACTION"
             case "${OACTION,,}" in
                 [mo]a) # (A)mend
