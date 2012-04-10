@@ -237,6 +237,7 @@ for FILETYPE in others modified; do
                     continue
                     ;;
                 [mo]x) # E(x)ecute suggestion
+                    [ -z $COMMIT ] && echo -e "Pardon sir, we have no suggestions to eXecute here\n" && continue
                     echo -e "Committing...\n"
                     # -f for files possibly in .gitignored, such as gconf/*
                     # for FILE in $MLIST; do git add -f "$FILE"; done
