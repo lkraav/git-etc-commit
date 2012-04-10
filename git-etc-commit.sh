@@ -86,7 +86,7 @@ for FILETYPE in others modified; do
             fi
         fi
 
-        echo -e "\nLast 5 commits:"; gitlog -5 --reverse; echo
+        echo -e "\nLast 5 commits:"; gitlog -5; echo
 
         printf "($C/$COUNT) Processing $(color ltred)${STATUS:+"$STATUS" }$(color off)$(color ltblue)$FILE$(color off)"
 
