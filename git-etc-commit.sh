@@ -181,6 +181,7 @@ for FILETYPE in others modified; do
                     ;;
                 [mo]d) # (D)elete
                     rm -i "$FILE"
+                    [ -e "$FILE" ] && continue
                     ;;
                 [mo]e) # (E)dit
                     eval $EDITOR "$FILE"
