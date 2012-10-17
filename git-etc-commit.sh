@@ -1,5 +1,7 @@
 #!/bin/bash
-# git-etc-commit 0.4, Leho Kraav <leho@kraav.com> https://github.com/lkraav/git-etc-commit
+# git-etc-commit 0.4
+# Leho Kraav <leho@kraav.com>
+# https://github.com/lkraav/git-etc-commit
 
 COLUMNS=80 # replace with $(tput cols) for variable width
 DIR="/etc"
