@@ -12,6 +12,10 @@ PAGER=""
 SEP="-"
 SEPARATOR=""
 
+usage() {
+    echo "Usage: ${0##*/} [<filename> ...]"
+}
+
 die() {
     echo "$@"
     exit 1
@@ -56,6 +60,14 @@ printlog() {
 
 [ $PWD != $DIR ] && die "Error: working directory is not $DIR, cannot continue"
 [ -r .git ] || die "Error: unable to read .git, check directory exists or permissions"
+
+while getopts "h" opt; do
+    case $opt in
+        h) usage; exit 0;;
+        \?) usage; exit 1;;
+    esac
+done
+shift $((OPTIND-1))
 
 # Processing goes in two passes. First go through others, then modifieds.
 for FILETYPE in others modified; do
