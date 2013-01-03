@@ -264,7 +264,7 @@ for FILETYPE in others modified; do
                     eval $COMMIT 2> /dev/null
                     ;;
                 *)
-                    die "Empty or unrecognized action, exiting" ;;
+                    die "Empty or unrecognized action '$OACTION', exiting" ;;
             esac
             break
         done
